@@ -12,7 +12,7 @@ PORTB:
 	PB0 -> not used (GND)
 	PB1 -> PWM output (OC1A) for side mirrors lights
 	PB2 -> PWM output (OC1B) for side edge lights
-	PB3 -> not used (MOSI)
+	PB3 -> not used (MOSI, OC2)
 	PB4 -> not used (MISO)
 	PB5 -> not used (SCK)
 	PB6 -> digital output for RGB lights (HIGH when activated)
@@ -155,12 +155,11 @@ int checkIgnition() //0-off, 1-on
 }
 
 /*
-// int checkReadingLight() //0-off, 1-on
-// {
-// 	if(PIND & _BV(6)) return 0;
-// 	else return 1;
-// }
-*/
+int checkReadingLight() //0-off, 1-on
+{
+	if(PIND & _BV(6)) return 0;
+ 	else return 1;
+}*/
 uint8_t checkReadingLight() //0-off, 1-on
 {
 	if(PIND & _BV(6))
@@ -301,6 +300,8 @@ int init()
 int main(void)
 {	
 	int time_ms = 0;
+	int timerOverflowCount = 0;
+	int t_max = 0;
 	
 	int photoresistor_left = 0;
 	int photoresistor_right = 0;
@@ -328,6 +329,8 @@ int main(void)
 					&photoresistor_reg_right, &dimmer_time_reg);
 					
 		dimm_time = dimmer_time_reg / 50;
+		t_max = (dimm_time*1000) / ( ((1024*1000)/F_CPU)*255 ); // <------ ????
+		
 		photoresitors_sensivity_lvl_left = photoresistor_reg_left / 4 * 3;		//0-3.75[V]
 		photoresitors_sensivity_lvl_right = photoresistor_reg_right / 4 * 3;	//
 		
@@ -340,43 +343,17 @@ int main(void)
 			f_isDark = 0;
 		}
 		
-		/*if(f_isDark)
+		if(f_isDark)
 		{
 
-			if(!f_isMirrorLightsOn) f_enableMirrorLights = 1;
-			else f_enableMirrorLights = 0;
 			
-			if(!f_isEdgeLightsOn) f_enableEdgeLights = 1;
-			else f_enableEdgeLights = 0;
-			
-			if(!f_isMirrorLightsOn || !f_isEdgeLightsOn)
-			{
-				brightSideLights(dimm_time, f_enableMirrorLights, f_enableEdgeLights);
-				f_isMirrorLightsOn = 1;
-				f_isEdgeLightsOn = 1;
-			}
-*/
-
-			/*
 			switch(checkExteriorLightsMode())
 			{
 				case EX_MODE1:
-					if(!f_isTimerEnabled) 
-					{
-						TCNT2 = 0x00;
-						timerOverflowCount = 0;
-						f_isTimerEnabled = 1;
-					}
-					else
-					{
-						if(TIFR & _BV(6)) timerOverflowCount++;
-						t_max = (dimm_time*1000) / ( ((1024*1000)/F_CPU)*255 )
-					}
 					if(checkIgnition())
 					{
 						if(f_isMirrorLightsOn)
 						{
-							//dimmMirrorLights(dimm_time);
 							disableSideMirrorLights();
 							f_isMirrorLightsOn = 0;
 						}
@@ -385,51 +362,28 @@ int main(void)
 							disableSideEdgeLights();
 							f_isEdgeLightsOn = 0;
 						}						
-					}
+					} 
 					else 
 					{
 						if(!checkDoorClosed())
 						{
-							if(!f_isEdgeLightsOn)
-							{
-								enableSideEdgeLights();
-								f_isEdgeLightsOn = 1;
-							}
-							if(!f_isMirrorLightsOn)
-							{
-								brightMirrorLights(dimm_time);
-								enableSideMirrorLights();
-								f_isMirrorLightsOn = 1;
-							}
-						}
-						else
-						{
-							if(f_isEdgeLightsOn)
-							{
-								disableSideEdgeLights();
-								f_isEdgeLightsOn = 0;
-							}
+							//start timera, zapal światła lusterkowe
+							//po upływie czasu zgaś
 							
-							if(checkReadingLight())
-							{
-								if(!f_isMirrorLightsOn)
-								{
-									brightMirrorLights(dimm_time);
-									enableSideMirrorLights();
-									f_isMirrorLightsOn = 1;
-								}
-							}
-							else
-							{
-								if(f_isMirrorLightsOn)
-								{
-									dimmMirrorLights(dimm_time);
-									disableSideMirrorLights();
-									f_isMirrorLightsOn = 0;
-								}
-							}
-						}
+						}						
 					}
+					
+					if(checkReadingLight())
+					{
+						enableSideEdgeLights();
+						enableRedLights();
+					}
+					else
+					{
+						disableSideEdgeLights();
+						disableRedLights();
+					}
+					
 					break;
 					
 				case EX_DISABLED:
@@ -496,7 +450,7 @@ int main(void)
 			default:
 				disableRGB();
 				break;
-		}*/
+		}
 		
     }
 }
