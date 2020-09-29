@@ -1,8 +1,9 @@
 /*
  * CAMALIC_v1_1.cpp
  *
- * Created: 6/1/2020 1:01:22 AM
- * Author : Paweł
+ * Author : PaulMich
+ * GITHUB: https://github.com/PaulMich/CAMALIC
+ * LICENSE: https://github.com/PaulMich/CAMALIC/blob/master/LICENSE
  */ 
 
 /************************
@@ -51,17 +52,17 @@ int initPWM()
 {
 	DDRB |= _BV(1) | _BV(2);
 	
-	TCCR1A = _BV(WGM10);                   // Fast PWM 8bit
+	TCCR1A = _BV(WGM10);                   					//!< Fast PWM 8bit
 	TCCR1B = _BV(WGM12);
-	TCCR1A |= _BV(COM1A1) | _BV(COM1A0) | _BV(COM1B1) | _BV(COM1B0);   //Clear OC1A/OC1B on Compare Match, set OC1A/OC1B at BOTTOM
-	TCCR1B |= _BV(CS11);					// Prescaler = 64  fpwm = 976,5Hz
-	OCR1A = 0;				//side mirrors lights
+	TCCR1A |= _BV(COM1A1) | _BV(COM1A0) | _BV(COM1B1) | _BV(COM1B0);	//!< Clear OC1A/OC1B on Compare Match, set OC1A/OC1B at BOTTOM
+	TCCR1B |= _BV(CS11);							//!< Prescaler = 64  fpwm = 976,5Hz
+	OCR1A = 0;								//!< side mirrors lights
 	OCR1B = 0;
 	
 	return 0;
 }
 
-uint8_t initClock() //pres 8, 125tick, 131 start
+uint8_t initClock() //!< prescaler 8, 125tick, 131 start
 {
 	sei();
 	
@@ -79,7 +80,6 @@ ISR(TIMER0_OVF_vect)
 }
 
 /*!
- * \brief
  * This functions makes measurements on ADC0, ADC1, ADC2, ADC3 and ADC4 inputs and saves them into 
  * provided variables.
  * \param adc0 - final result of ADC0 measurement
@@ -274,20 +274,20 @@ int brightMirrorLights(int duration_ms)
 
 int init()
 {
-	//DIGITAL INPUTS
+	//!DIGITAL INPUTS
 	DDRD = 0x00;
 	
-	//ANALOG IPUTS
+	//!ANALOG IPUTS
 	DDRC &= ~_BV(0);
 	DDRC &= ~_BV(1);
 	DDRC &= ~_BV(2);
 	DDRC &= ~_BV(3);
 	DDRC &= ~_BV(4);
 	
-	//DIGITAL OUTPUTS
+	//!DIGITAL OUTPUTS
 	DDRB |= _BV(6) | _BV(7);
 	
-	//PWM OUTPUTS
+	//!PWM OUTPUTS
 	initPWM();
 	disableRGB();
 	disableRedLights();
