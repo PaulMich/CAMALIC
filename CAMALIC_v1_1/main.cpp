@@ -49,7 +49,6 @@ PORTD:
 
 long clockCounter = 0;
 
-
 int f_TERMINATOR = 0;
 
 int initPWM()
