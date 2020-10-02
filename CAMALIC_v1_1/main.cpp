@@ -43,9 +43,13 @@ PORTD:
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+
 #include <util/delay.h>
 
-uint8_t clockCounter = 0;
+long clockCounter = 0;
+
+
+int f_TERMINATOR = 0;
 
 int initPWM()
 {
@@ -75,7 +79,7 @@ uint8_t initClock() //pres 8, 125tick, 131 start
 ISR(TIMER0_OVF_vect)
 {
 	clockCounter++;
-	TCNT0 = 131;
+	TCNT0 = 0;
 }
 
 /*!
@@ -144,8 +148,8 @@ int measureADC(int *adc0, int *adc1, int *adc2, int*adc3, int *adc4)
 
 int checkDoorClosed()	//1-closed, 0-open
 {
-	if(PIND & _BV(0)) return 0;
-	else return 1;				
+	if(PINB & _BV(0)) return 1;
+	else return 0;				
 }
 
 int checkIgnition() //0-off, 1-on
@@ -154,12 +158,14 @@ int checkIgnition() //0-off, 1-on
 	else return 1;
 }
 
-/*
+
 int checkReadingLight() //0-off, 1-on
 {
-	if(PIND & _BV(6)) return 0;
- 	else return 1;
-}*/
+	if(f_TERMINATOR) return 0;
+	if(PIND & _BV(6)) return 1;
+ 	else return 0;
+}
+/*
 uint8_t checkReadingLight() //0-off, 1-on
 {
 	if(PIND & _BV(6))
@@ -172,7 +178,7 @@ uint8_t checkReadingLight() //0-off, 1-on
 		return 1;
 	}
 	else return 0;
-}
+}*/
 
 #define EX_MODE1 1
 #define EX_MODE2 2
@@ -233,7 +239,7 @@ int disableSideMirrorLights()
 int enableSideEdgeLights()
 {
 	//PORTB |= _BV(2);
-	OCR1B = 0;
+	OCR1B = 100;
 	return 0;
 }
 
@@ -319,12 +325,24 @@ int main(void)
 	int f_enableMirrorLights = 0;
 	int f_enableEdgeLights = 0;
 	int f_isTimerEnabled = 0;
+	int f_isRedLightsOn = 0;
+	int f_isRGBon = 0;
+	
+	int f_wasDoorClosed = 1;
 	
 	init();
 	
 	
     while (1) 
     {
+		//enableRGB();
+		//enableRedLights();
+		//enableSideEdgeLights();
+		//enableSideMirrorLights();
+		
+		//if(checkReadingLight()) enableSideMirrorLights();
+		//else dimmMirrorLights(5);
+		
 		measureADC(&photoresistor_left, &photoresistor_right, &photoresistor_reg_left,
 					&photoresistor_reg_right, &dimmer_time_reg);
 					
@@ -334,6 +352,7 @@ int main(void)
 		photoresitors_sensivity_lvl_left = photoresistor_reg_left / 4 * 3;		//0-3.75[V]
 		photoresitors_sensivity_lvl_right = photoresistor_reg_right / 4 * 3;	//
 		
+		/*
 		if(photoresistor_left <= photoresitors_sensivity_lvl_left && photoresistor_right <= photoresitors_sensivity_lvl_right)
 		{
 			f_isDark = 1;		
@@ -341,115 +360,192 @@ int main(void)
 		else 
 		{
 			f_isDark = 0;
-		}
+		}*/
 		
-		if(f_isDark)
+		if(f_wasDoorClosed)
 		{
-
-			
-			switch(checkExteriorLightsMode())
+			if(!f_isTimerEnabled)
 			{
-				case EX_MODE1:
-					if(checkIgnition())
-					{
-						if(f_isMirrorLightsOn)
-						{
-							disableSideMirrorLights();
-							f_isMirrorLightsOn = 0;
-						}
-						if(f_isEdgeLightsOn)
-						{
-							disableSideEdgeLights();
-							f_isEdgeLightsOn = 0;
-						}						
-					} 
-					else 
-					{
-						if(!checkDoorClosed())
-						{
-							//start timera, zapal światła lusterkowe
-							//po upływie czasu zgaś
-							
-						}						
-					}
-					
-					if(checkReadingLight())
-					{
-						enableSideEdgeLights();
-						enableRedLights();
-					}
-					else
-					{
-						disableSideEdgeLights();
-						disableRedLights();
-					}
-					
-					break;
-					
-				case EX_DISABLED:
-					if(f_isEdgeLightsOn)
-					{
-						disableSideEdgeLights();
-						f_isEdgeLightsOn = 0;
-					}
-					if(f_isMirrorLightsOn)
-					{
-						dimmMirrorLights(dimm_time);
-						disableSideMirrorLights();
-						f_isMirrorLightsOn = 0;
-					}
-					break;
-				
-				default:
-					if(f_isEdgeLightsOn)
-					{
-						disableSideEdgeLights();
-						f_isEdgeLightsOn = 0;
-					}
-					if(f_isMirrorLightsOn)
-					{
-						dimmMirrorLights(dimm_time);
-						disableSideMirrorLights();
-						f_isMirrorLightsOn = 0;
-					}
-					break;
+				initClock();
+				f_isTimerEnabled = 1;
 			}
-
-		}
-		else
-		{
-			if(f_isEdgeLightsOn)
+			if(clockCounter > 58823) //po upływie 2[min]
 			{
-				disableSideEdgeLights();
-				f_isEdgeLightsOn = 0;
-			}
-			if(f_isMirrorLightsOn)
-			{
-				dimmMirrorLights(dimm_time);
-				disableSideMirrorLights();
-				f_isMirrorLightsOn = 0;
+				f_isTimerEnabled = 0;
+				f_TERMINATOR = 1;
 			}
 		}
+
+		f_isDark = 1;
 		
 		switch(checkInteriorLightsMode())
 		{
 			case IN_MODE1:
-				if(checkReadingLight()) enableRGB();
-				else disableRGB();
+				if(checkIgnition())
+				{
+					if(!f_isRGBon)
+					{
+						enableRGB();
+						f_isRGBon = 1;
+					}
+				}
+				if(!checkIgnition())
+				{
+					if(f_isRGBon)
+					{
+						disableRGB();
+						f_isRGBon = 0;
+					}
+				}
 				break;
 				
-			case IN_MODE2:
-				if(checkIgnition()) enableRGB();
-				else disableRGB();
+			case IN_MODE2:	
+				if(checkReadingLight() && !f_isRGBon)
+				{
+					enableRGB();
+					f_isRGBon = 1;
+					_delay_ms(800);
+				}
+				
+				if(!checkReadingLight() && f_isRGBon)
+				{
+					disableRGB();
+					f_isRGBon = 0;
+					_delay_ms(800);
+				}
 				break;
-			
+				
 			case IN_DISABLED:
 				disableRGB();
+				f_isRGBon = 0;
 				break;
 				
 			default:
 				disableRGB();
+				f_isRGBon = 0;
 				break;
+		}
+		
+		switch(checkExteriorLightsMode())
+		{
+			case EX_MODE1:
+				if(checkReadingLight() && !f_isRedLightsOn)
+				{
+					enableRedLights();
+					f_isRedLightsOn = 1;
+				}
+				else if(!checkReadingLight() && f_isRedLightsOn)
+				{
+					disableRedLights();
+					f_isRedLightsOn = 0;
+				}
+				if(!checkIgnition())
+				{
+					if(!checkDoorClosed())
+					{
+						if(f_wasDoorClosed && !f_isMirrorLightsOn)
+						{
+							brightMirrorLights(5);
+							enableSideMirrorLights();
+							f_isMirrorLightsOn = 1;
+							f_wasDoorClosed = 0;
+							f_TERMINATOR = 0;
+						}
+						
+						if(checkReadingLight())
+						{
+							
+							if(!f_isEdgeLightsOn)
+							{
+								enableSideEdgeLights();
+								f_isEdgeLightsOn = 1;
+							}
+							if(!f_isMirrorLightsOn)
+							{
+								brightMirrorLights(5);
+								enableSideMirrorLights();
+								f_isMirrorLightsOn = 1;
+							}
+						}
+						else
+						{
+							if(f_isEdgeLightsOn)
+							{
+								disableSideEdgeLights();
+								f_isEdgeLightsOn = 0;
+							}
+							if(f_isMirrorLightsOn)
+							{
+								dimmMirrorLights(5);
+								disableSideMirrorLights();
+								f_isMirrorLightsOn = 0;
+							}
+						}
+					}
+					else
+					{
+						if(f_isEdgeLightsOn)
+						{
+							disableSideEdgeLights();
+							f_isEdgeLightsOn = 0;
+						}
+						if(f_isMirrorLightsOn)
+						{
+							_delay_ms(30000);
+							dimmMirrorLights(5);
+							disableSideMirrorLights();
+							f_isMirrorLightsOn = 0;
+						}
+						f_wasDoorClosed = 1;
+					}
+				}
+				else
+				{
+					if(f_isMirrorLightsOn)
+					{
+						disableSideMirrorLights();
+						f_isMirrorLightsOn = 0;
+					}
+				}
+				break;
+				
+			case EX_MODE2:
+				if(checkReadingLight())
+				{
+					if(!f_isRedLightsOn)
+					{
+						enableRedLights();
+						f_isRedLightsOn = 1;
+					}
+				}
+				else 
+				{
+					if(f_isRedLightsOn)
+					{
+						disableRedLights();
+						_delay_ms(1500);
+						f_isRedLightsOn = 0;
+					}
+				}
+				break;
+			
+			case EX_DISABLED:
+				disableSideMirrorLights();
+				disableRedLights();
+				disableSideEdgeLights();
+				f_isMirrorLightsOn = 0;
+				f_isRedLightsOn = 0;
+				f_isEdgeLightsOn = 0;				
+				break;
+				
+			default:
+				disableSideMirrorLights();
+				disableRedLights();
+				disableSideEdgeLights();
+				f_isMirrorLightsOn = 0;
+				f_isRedLightsOn = 0;
+				f_isEdgeLightsOn = 0;
+				break;	
 		}
 		
     }
